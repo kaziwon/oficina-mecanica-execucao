@@ -214,6 +214,11 @@ O GitHub Actions configura essa variavel e inicia um Mongo temporario no proprio
 runner, executando a integracao real. A pipeline faz build, testes e publica a
 cobertura como artefato. Nao publica imagem, nao faz deploy e nao usa a AWS.
 
+O job de testes usa `ubuntu-22.04` para manter um kernel compativel com MongoDB 8.
+Containers compartilham o kernel do runner; o bloqueio de inicializacao em
+kernels recentes e acompanhado no [SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912).
+Essa escolha preserva os testes com MongoDB real, sem desativar verificacoes do banco.
+
 ## Proximos incrementos
 
 - Reserva de pecas e liberacao da reserva com idempotencia.
