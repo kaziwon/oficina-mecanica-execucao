@@ -23,7 +23,8 @@ jobs:
 
   test:
     name: Testes e cobertura
-    runs-on: ubuntu-latest
+    # MongoDB 8 falha em kernels recentes usados pelo ubuntu-latest (SERVER-121912).
+    runs-on: ubuntu-22.04
     needs: build
     services:
       mongo:
