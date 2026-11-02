@@ -1,0 +1,41 @@
+name: oficina-mecanica-execucao-fase4
+
+services:
+  mongo:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Informe MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Informe MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:?Informe MONGO_DATABASE}
+      MONGO_DATABASE: ${MONGO_DATABASE}
+      MONGO_USERNAME: ${MONGO_USERNAME:?Informe MONGO_USERNAME}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:?Informe MONGO_PASSWORD}
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27018}:27017"
+    volumes:
+      - execucao_data:/data/db
+      - ./infra/local/mongo-init.js:/docker-entrypoint-initdb.d/01-execucao.js:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --host 127.0.0.1 --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 }).ok'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  api:
+    build: .
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      MongoSettings__ConnectionString: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/${MONGO_DATABASE}?authSource=${MONGO_DATABASE}"
+      MongoSettings__DatabaseName: ${MONGO_DATABASE}
+      JwtSettings__SecretKey: ${JWT_SECRET:?Informe JWT_SECRET}
+      AdminUserSettings__Username: ${ADMIN_USERNAME:-admin}
+      AdminUserSettings__Password: ${ADMIN_PASSWORD:?Informe ADMIN_PASSWORD}
+    ports:
+      - "127.0.0.1:${API_PORT:-18082}:8080"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  execucao_data:

@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OficinaMecanica.Execucao.Api/OficinaMecanica.Execucao.Api.csproj" />
+    <Project Path="src/OficinaMecanica.Execucao.Application/OficinaMecanica.Execucao.Application.csproj" />
+    <Project Path="src/OficinaMecanica.Execucao.Domain/OficinaMecanica.Execucao.Domain.csproj" />
+    <Project Path="src/OficinaMecanica.Execucao.Infrastructure/OficinaMecanica.Execucao.Infrastructure.csproj" />
+    <Project Path="src/OficinaMecanica.Execucao.InterfaceAdapters/OficinaMecanica.Execucao.InterfaceAdapters.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OficinaMecanica.Execucao.IntegrationTests/OficinaMecanica.Execucao.IntegrationTests.csproj" />
+    <Project Path="tests/OficinaMecanica.Execucao.UnitTests/OficinaMecanica.Execucao.UnitTests.csproj" />
+  </Folder>
+</Solution>
