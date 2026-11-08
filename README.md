@@ -25,6 +25,14 @@ da Saga apos aprovacao e pagamento. Ainda nao ha comunicacao com Ordens nem
 Cobranca. Por enquanto, o ID da OS e informado manualmente ao registrar a
 execucao, e nenhuma alteracao feita aqui muda o status no banco de Ordens.
 
+## Primeiro contrato de integracao
+
+O [contrato v1 de abertura de OS e entrada em Execucao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/01-abertura-os.md)
+fica documentado em Ordens, que coordenara a Saga. Ele define os comandos de
+registro e compensacao e as respostas de Execucao, com repeticao segura e
+tratamento de falhas. Esta e uma definicao para o proximo incremento; ainda
+nao existem consumidores, publicadores ou filas conectando os servicos.
+
 ## Clean Architecture
 
 ```text
