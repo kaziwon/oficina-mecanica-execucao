@@ -15,11 +15,14 @@ public class MongoOutboxDataSource : IOutboxDataSource
     public List<MensagemIntegracao> ObterPendentes(int limite)
     {
         var filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasEntrada, item => item.PublicadaEm == null)
-            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosDiagnostico, item => item.PublicadoEm == null);
+            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosDiagnostico, item => item.PublicadoEm == null)
+            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasRecusaOrcamento, item => item.PublicadaEm == null);
         return _execucoes.Find(filter).SortBy(item => item.CriadaEm).Limit(limite).ToList()
             .SelectMany(item => item.RespostasEntrada.Where(resposta => resposta.PublicadaEm == null)
                 .Select(RespostaEntradaMapper.Mapear).Concat(item.EventosDiagnostico
-                    .Where(evento => evento.PublicadoEm == null).Select(EventoDiagnosticoMapper.Mapear)))
+                    .Where(evento => evento.PublicadoEm == null).Select(EventoDiagnosticoMapper.Mapear))
+                .Concat(item.RespostasRecusaOrcamento.Where(resposta => resposta.PublicadaEm == null)
+                    .Select(RespostaRecusaOrcamentoMapper.Mapear)))
             .OrderBy(item => item.OccurredAt).ThenBy(item => item.MessageId).Take(limite).ToList();
     }
 
@@ -28,6 +31,11 @@ public class MongoOutboxDataSource : IOutboxDataSource
         var filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasEntrada,
             item => item.MessageId == messageId && item.PublicadaEm == null);
         var update = Builders<ExecucaoServico>.Update.Set("RespostasEntrada.$.PublicadaEm", DateTime.UtcNow)
+            .Inc(item => item.Versao, 1);
+        _execucoes.UpdateOne(filter, update);
+        filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasRecusaOrcamento,
+            item => item.MessageId == messageId && item.PublicadaEm == null);
+        update = Builders<ExecucaoServico>.Update.Set("RespostasRecusaOrcamento.$.PublicadaEm", DateTime.UtcNow)
             .Inc(item => item.Versao, 1);
         _execucoes.UpdateOne(filter, update);
         filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosDiagnostico,

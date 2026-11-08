@@ -18,6 +18,7 @@ public class ExecucaoServico
     public bool EntradaRegistrada { get; set; } = true;
     public List<RespostaEntrada> RespostasEntrada { get; set; } = [];
     public List<EventoDiagnostico> EventosDiagnostico { get; set; } = [];
+    public List<RespostaRecusaOrcamento> RespostasRecusaOrcamento { get; set; } = [];
     public List<ItemServicoDiagnostico> Servicos { get; set; } = [];
     public List<ItemPecaDiagnostico> PecasInsumos { get; set; } = [];
     public List<HistoricoExecucao> Historico { get; set; } = [];
@@ -36,6 +37,13 @@ public class ExecucaoServico
         if (Status == StatusExecucao.Cancelada) return;
         if (Status != StatusExecucao.AguardandoDiagnostico)
             throw new RegraNegocioException("O diagnostico ja iniciou; esta compensacao exige tratamento explicito.");
+        RegistrarStatus(StatusExecucao.Cancelada, DateTime.UtcNow);
+    }
+
+    public void CancelarPorRecusaOrcamento()
+    {
+        if (Status != StatusExecucao.AguardandoLiberacao || !DiagnosticoConcluidoEm.HasValue)
+            throw new RegraNegocioException("Somente uma execucao diagnosticada, ainda nao liberada, pode ser cancelada por recusa.");
         RegistrarStatus(StatusExecucao.Cancelada, DateTime.UtcNow);
     }
 
