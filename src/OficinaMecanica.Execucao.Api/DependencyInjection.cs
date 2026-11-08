@@ -21,6 +21,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddExecucao(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddOptions<Infrastructure.Settings.MessagingSettings>().Bind(configuration.GetSection("Messaging"));
+        services.AddSingleton<Infrastructure.Messaging.SqsTransport>();
+        services.AddHostedService<Messaging.IntegracaoWorker>();
+        services.AddScoped<IOutboxDataSource, MongoOutboxDataSource>();
+        services.AddScoped<IOutboxGateway, OutboxGateway>();
+        services.AddScoped<IEntradaExecucaoDataSource, MongoEntradaExecucaoDataSource>();
+        services.AddScoped<IEntradaExecucaoGateway, EntradaExecucaoGateway>();
+        services.AddScoped<ProcessarComandoEntradaUseCase>();
+        services.AddScoped<IntegracaoCleanController>();
         services.AddOptions<MongoSettings>().Bind(configuration.GetSection("MongoSettings"))
             .Validate(settings => !string.IsNullOrWhiteSpace(settings.ConnectionString)
                 && !string.IsNullOrWhiteSpace(settings.DatabaseName), "Configure a conexao e o banco de Execucao.")

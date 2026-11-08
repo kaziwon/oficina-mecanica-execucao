@@ -13,6 +13,11 @@ public class ExecucaoServico
     public DateTime? DiagnosticoIniciadoEm { get; set; }
     public DateTime? DiagnosticoConcluidoEm { get; set; }
     public long Versao { get; set; }
+    public Guid? SagaId { get; set; }
+    public Guid? PedidoRegistroId { get; set; }
+    public bool EntradaRegistrada { get; set; } = true;
+    public List<RespostaEntrada> RespostasEntrada { get; set; } = [];
+    public List<EventoDiagnostico> EventosDiagnostico { get; set; } = [];
     public List<ItemServicoDiagnostico> Servicos { get; set; } = [];
     public List<ItemPecaDiagnostico> PecasInsumos { get; set; } = [];
     public List<HistoricoExecucao> Historico { get; set; } = [];
@@ -23,6 +28,15 @@ public class ExecucaoServico
             throw new RegraNegocioException("A execucao nao esta aguardando diagnostico.");
         DiagnosticoIniciadoEm = DateTime.UtcNow;
         RegistrarStatus(StatusExecucao.EmDiagnostico, DiagnosticoIniciadoEm.Value);
+        RegistrarEventoDiagnostico("DiagnosticoIniciado", DiagnosticoIniciadoEm.Value);
+    }
+
+    public void CancelarEntrada()
+    {
+        if (Status == StatusExecucao.Cancelada) return;
+        if (Status != StatusExecucao.AguardandoDiagnostico)
+            throw new RegraNegocioException("O diagnostico ja iniciou; esta compensacao exige tratamento explicito.");
+        RegistrarStatus(StatusExecucao.Cancelada, DateTime.UtcNow);
     }
 
     public void ConcluirDiagnostico(string descricao, List<ItemServicoDiagnostico> servicos, List<ItemPecaDiagnostico> pecas)
@@ -34,6 +48,37 @@ public class ExecucaoServico
         PecasInsumos = pecas;
         DiagnosticoConcluidoEm = DateTime.UtcNow;
         RegistrarStatus(StatusExecucao.AguardandoLiberacao, DiagnosticoConcluidoEm.Value);
+        RegistrarEventoDiagnostico("DiagnosticoConcluido", DiagnosticoConcluidoEm.Value);
+    }
+
+    private void RegistrarEventoDiagnostico(string tipo, DateTime agora)
+    {
+        if (!SagaId.HasValue) return;
+        var entrada = RespostasEntrada.Single(item => item.SagaId == SagaId
+            && item.CausationId == PedidoRegistroId && item.Tipo == "ExecucaoRegistrada");
+        var concluido = tipo == "DiagnosticoConcluido";
+        EventosDiagnostico.Add(new EventoDiagnostico
+        {
+            Tipo = tipo,
+            SagaId = SagaId.Value,
+            CausationId = PedidoRegistroId!.Value,
+            OrdemServicoId = OrdemServicoId,
+            ExecucaoId = Id,
+            CorrelationId = entrada.CorrelationId,
+            CriadoEm = agora,
+            IniciadoEm = DiagnosticoIniciadoEm!.Value,
+            ConcluidoEm = concluido ? DiagnosticoConcluidoEm : null,
+            Diagnostico = concluido ? Diagnostico : null,
+            Servicos = concluido ? Servicos.Select(item => new ItemServicoDiagnostico
+            { ServicoId = item.ServicoId, Nome = item.Nome, Preco = item.Preco }).ToList() : [],
+            PecasInsumos = concluido ? PecasInsumos.Select(item => new ItemPecaDiagnostico
+            {
+                PecaInsumoId = item.PecaInsumoId,
+                Nome = item.Nome,
+                Quantidade = item.Quantidade,
+                PrecoUnitario = item.PrecoUnitario
+            }).ToList() : []
+        });
     }
 
     private void RegistrarStatus(StatusExecucao status, DateTime agora)
