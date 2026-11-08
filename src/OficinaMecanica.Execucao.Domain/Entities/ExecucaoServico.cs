@@ -13,6 +13,10 @@ public class ExecucaoServico
     public DateTime? DiagnosticoIniciadoEm { get; set; }
     public DateTime? DiagnosticoConcluidoEm { get; set; }
     public long Versao { get; set; }
+    public Guid? SagaId { get; set; }
+    public Guid? PedidoRegistroId { get; set; }
+    public bool EntradaRegistrada { get; set; } = true;
+    public List<RespostaEntrada> RespostasEntrada { get; set; } = [];
     public List<ItemServicoDiagnostico> Servicos { get; set; } = [];
     public List<ItemPecaDiagnostico> PecasInsumos { get; set; } = [];
     public List<HistoricoExecucao> Historico { get; set; } = [];
@@ -23,6 +27,14 @@ public class ExecucaoServico
             throw new RegraNegocioException("A execucao nao esta aguardando diagnostico.");
         DiagnosticoIniciadoEm = DateTime.UtcNow;
         RegistrarStatus(StatusExecucao.EmDiagnostico, DiagnosticoIniciadoEm.Value);
+    }
+
+    public void CancelarEntrada()
+    {
+        if (Status == StatusExecucao.Cancelada) return;
+        if (Status != StatusExecucao.AguardandoDiagnostico)
+            throw new RegraNegocioException("O diagnostico ja iniciou; esta compensacao exige tratamento explicito.");
+        RegistrarStatus(StatusExecucao.Cancelada, DateTime.UtcNow);
     }
 
     public void ConcluirDiagnostico(string descricao, List<ItemServicoDiagnostico> servicos, List<ItemPecaDiagnostico> pecas)

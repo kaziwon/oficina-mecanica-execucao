@@ -28,6 +28,8 @@ public class ExecucaoApiFactory : WebApplicationFactory<Program>
             ["JwtSettings:SecretKey"] = "chave-exclusiva-dos-testes-de-execucao-1234567890",
             ["AdminUserSettings:Username"] = "admin",
             ["AdminUserSettings:Password"] = "SenhaDosTestes@123"
+            ,
+            ["Messaging:Enabled"] = "false"
         }));
     }
 
