@@ -14,10 +14,13 @@ public class MongoOutboxDataSource : IOutboxDataSource
 
     public List<MensagemIntegracao> ObterPendentes(int limite)
     {
-        var filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasEntrada, item => item.PublicadaEm == null);
+        var filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasEntrada, item => item.PublicadaEm == null)
+            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosDiagnostico, item => item.PublicadoEm == null);
         return _execucoes.Find(filter).SortBy(item => item.CriadaEm).Limit(limite).ToList()
-            .SelectMany(item => item.RespostasEntrada).Where(item => item.PublicadaEm == null)
-            .OrderBy(item => item.CriadaEm).Take(limite).Select(RespostaEntradaMapper.Mapear).ToList();
+            .SelectMany(item => item.RespostasEntrada.Where(resposta => resposta.PublicadaEm == null)
+                .Select(RespostaEntradaMapper.Mapear).Concat(item.EventosDiagnostico
+                    .Where(evento => evento.PublicadoEm == null).Select(EventoDiagnosticoMapper.Mapear)))
+            .OrderBy(item => item.OccurredAt).ThenBy(item => item.MessageId).Take(limite).ToList();
     }
 
     public void ConfirmarPublicacao(Guid messageId)
@@ -25,6 +28,11 @@ public class MongoOutboxDataSource : IOutboxDataSource
         var filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasEntrada,
             item => item.MessageId == messageId && item.PublicadaEm == null);
         var update = Builders<ExecucaoServico>.Update.Set("RespostasEntrada.$.PublicadaEm", DateTime.UtcNow)
+            .Inc(item => item.Versao, 1);
+        _execucoes.UpdateOne(filter, update);
+        filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosDiagnostico,
+            item => item.MessageId == messageId && item.PublicadoEm == null);
+        update = Builders<ExecucaoServico>.Update.Set("EventosDiagnostico.$.PublicadoEm", DateTime.UtcNow)
             .Inc(item => item.Versao, 1);
         _execucoes.UpdateOne(filter, update);
     }

@@ -45,6 +45,24 @@ Cancelar antes do registro cria uma marca `Cancelada` no mesmo documento, fora
 da fila operacional. Um registro atrasado nao pode reativar essa entrada.
 Depois do inicio do diagnostico, a compensacao automatica e recusada.
 
+## Diagnostico integrado com a Saga
+
+Para uma entrada recebida de Ordens, iniciar e concluir diagnostico grava tambem
+eventos pendentes no mesmo documento MongoDB. O worker envia `DiagnosticoIniciado`
+e `DiagnosticoConcluido` a Ordens. A conclusao inclui nomes, precos e quantidades
+copiados do catalogo; alteracoes futuras no catalogo nao mudam esse evento.
+Uma atualizacao concorrente ou repeticao HTTP nao grava uma segunda conclusao.
+Entradas manuais sem Saga continuam independentes e nao inventam uma Saga.
+
+Ordens recebe a conclusao e solicita o orcamento a Cobranca. Execucao nao acessa
+o MySQL dos outros servicos nem chama Cobranca diretamente. As datas e os IDs
+de correlacao acompanham as mensagens. A publicacao tambem incrementa a versao
+do documento, impedindo que uma gravacao antiga desfaca a confirmacao de envio.
+
+O [guia central de diagnostico e orcamento](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/03-diagnostico-orcamento.md)
+explica o contrato, o Compose integrado e os scripts HTTP dos tres servicos.
+Isso nao inicia pagamento nem libera o reparo ainda.
+
 ## Clean Architecture
 
 ```text
@@ -255,7 +273,7 @@ Essa escolha preserva os testes com MongoDB real, sem desativar verificacoes do 
 ## Proximos incrementos
 
 - Reserva de pecas e liberacao da reserva com idempotencia.
-- Proximos eventos de diagnostico e reparo, com coordenacao por Ordens e integracao de Cobranca.
+- Eventos de reparo e coordenacao das proximas etapas por Ordens.
 - Inicio e finalizacao dos reparos condicionados a liberacao da Saga.
 - Qualidade com Sonar, verificacao de 80% e BDD distribuido.
 - Kubernetes, Terraform, CD e observabilidade distribuida no New Relic.
