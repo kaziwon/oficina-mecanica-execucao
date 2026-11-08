@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <PackageReference Include="AWSSDK.SQS" Version="4.0.100.25" />
     <ProjectReference Include="../OficinaMecanica.Execucao.InterfaceAdapters/OficinaMecanica.Execucao.InterfaceAdapters.csproj" />
     <PackageReference Include="MongoDB.Driver" Version="3.13.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.14.0" />

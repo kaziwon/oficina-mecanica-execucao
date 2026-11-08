@@ -21,17 +21,29 @@ AguardandoDiagnostico -> EmDiagnostico -> AguardandoLiberacao
 ```
 
 Os proximos estados, incluindo reparo e finalizacao, serao conectados a liberacao
-da Saga apos aprovacao e pagamento. Ainda nao ha comunicacao com Ordens nem
-Cobranca. Por enquanto, o ID da OS e informado manualmente ao registrar a
-execucao, e nenhuma alteracao feita aqui muda o status no banco de Ordens.
+da Saga apos aprovacao e pagamento. O primeiro trecho de comunicacao com Ordens
+ja registra a entrada automaticamente por mensagens. Nao ha integracao com
+Cobranca nesta etapa. A criacao manual permanece disponivel para administradores.
+Execucao nunca acessa o banco de Ordens; confirmacoes e recusas voltam por eventos.
 
 ## Primeiro contrato de integracao
 
 O [contrato v1 de abertura de OS e entrada em Execucao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/01-abertura-os.md)
 fica documentado em Ordens, que coordenara a Saga. Ele define os comandos de
 registro e compensacao e as respostas de Execucao, com repeticao segura e
-tratamento de falhas. Esta e uma definicao para o proximo incremento; ainda
-nao existem consumidores, publicadores ou filas conectando os servicos.
+tratamento de falhas. O consumidor e o publicador desse trecho estao implementados;
+o [guia local em Ordens](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/02-executar-abertura.md)
+explica como executar os dois servicos juntos, sem AWS.
+
+O documento da execucao guarda tambem a Saga, as respostas e a identificacao dos
+comandos processados. A entrada e sua resposta sao gravadas juntas, sem exigir
+transacao entre colecoes ou replica set. Um indice unico impede reutilizar um
+messageId em outra OS. Uma versao desatualizada nao pode sobrescrever a resposta
+ou seu estado de publicacao.
+
+Cancelar antes do registro cria uma marca `Cancelada` no mesmo documento, fora
+da fila operacional. Um registro atrasado nao pode reativar essa entrada.
+Depois do inicio do diagnostico, a compensacao automatica e recusada.
 
 ## Clean Architecture
 
@@ -222,6 +234,19 @@ O GitHub Actions configura essa variavel e inicia um Mongo temporario no proprio
 runner, executando a integracao real. A pipeline faz build, testes e publica a
 cobertura como artefato. Nao publica imagem, nao faz deploy e nao usa a AWS.
 
+O CI tambem sobe ElasticMQ e define `SQS_TEST_ENDPOINT`, verificando o SDK SQS
+sem chamar a AWS. Para testar esse transporte localmente com o ambiente integrado:
+
+```bash
+export SQS_TEST_ENDPOINT=http://127.0.0.1:9324
+dotnet test OficinaMecanica.Execucao.slnx --configuration Release
+unset SQS_TEST_ENDPOINT
+```
+
+`Messaging:Enabled` e falso por padrao: iniciar apenas este servico nao publica
+mensagens por acidente. O Compose integrado habilita os workers dos dois lados.
+As credenciais `local/local` do simulador nao sao credenciais AWS.
+
 O job de testes usa `ubuntu-22.04` para manter um kernel compativel com MongoDB 8.
 Containers compartilham o kernel do runner; o bloqueio de inicializacao em
 kernels recentes e acompanhado no [SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912).
@@ -230,7 +255,7 @@ Essa escolha preserva os testes com MongoDB real, sem desativar verificacoes do 
 ## Proximos incrementos
 
 - Reserva de pecas e liberacao da reserva com idempotencia.
-- Integracao por mensagens com Ordens e Cobranca.
+- Proximos eventos de diagnostico e reparo, com coordenacao por Ordens e integracao de Cobranca.
 - Inicio e finalizacao dos reparos condicionados a liberacao da Saga.
 - Qualidade com Sonar, verificacao de 80% e BDD distribuido.
 - Kubernetes, Terraform, CD e observabilidade distribuida no New Relic.

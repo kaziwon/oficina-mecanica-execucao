@@ -27,6 +27,9 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build
     services:
+      sqs:
+        image: softwaremill/elasticmq:1.7.1
+        ports: ["9324:9324"]
       mongo:
         image: mongo:8.0
         ports:
@@ -37,6 +40,7 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     env:
+      SQS_TEST_ENDPOINT: http://127.0.0.1:9324
       MONGODB_TEST_CONNECTION_STRING: mongodb://127.0.0.1:27017
     steps:
       - uses: actions/checkout@v4
