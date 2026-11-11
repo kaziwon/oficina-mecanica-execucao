@@ -20,6 +20,9 @@ internal static class ExecucaoOutputMapper
             OrcamentoId = execucao.Autorizacao?.OrcamentoId,
             PagamentoId = execucao.Autorizacao?.PagamentoId,
             LiberadaEm = execucao.Autorizacao?.LiberadaEm,
+            ReparoIniciadoEm = execucao.ReparoIniciadoEm,
+            ReservasPecas = execucao.ReservasPecas.Select(item => new ReservaPecaOutput
+            { PecaInsumoId = item.PecaInsumoId, Quantidade = item.Quantidade, ReservadaEm = item.ReservadaEm }).ToList(),
             Versao = execucao.Versao,
             Servicos = execucao.Servicos.Select(item => new ItemServicoDiagnosticoOutput
             {

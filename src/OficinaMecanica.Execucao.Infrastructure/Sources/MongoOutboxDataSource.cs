@@ -17,19 +17,24 @@ public class MongoOutboxDataSource : IOutboxDataSource
         var filter = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasEntrada, item => item.PublicadaEm == null)
             | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosDiagnostico, item => item.PublicadoEm == null)
             | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasRecusaOrcamento, item => item.PublicadaEm == null)
-            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasLiberacao, item => item.PublicadaEm == null);
+            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasLiberacao, item => item.PublicadaEm == null)
+            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosReparo, item => item.PublicadoEm == null);
         return _execucoes.Find(filter).SortBy(item => item.CriadaEm).Limit(limite).ToList()
             .SelectMany(item => item.RespostasEntrada.Where(resposta => resposta.PublicadaEm == null)
                 .Select(RespostaEntradaMapper.Mapear).Concat(item.EventosDiagnostico
                     .Where(evento => evento.PublicadoEm == null).Select(EventoDiagnosticoMapper.Mapear))
                 .Concat(item.RespostasRecusaOrcamento.Where(resposta => resposta.PublicadaEm == null)
                     .Select(RespostaRecusaOrcamentoMapper.Mapear))
-                .Concat(item.RespostasLiberacao.Where(resposta => resposta.PublicadaEm == null).Select(RespostaLiberacaoExecucaoMapper.Mapear)))
+                .Concat(item.RespostasLiberacao.Where(resposta => resposta.PublicadaEm == null).Select(RespostaLiberacaoExecucaoMapper.Mapear))
+                .Concat(item.EventosReparo.Where(evento => evento.PublicadoEm == null).Select(EventoReparoMapper.Mapear)))
             .OrderBy(item => item.OccurredAt).ThenBy(item => item.MessageId).Take(limite).ToList();
     }
 
     public void ConfirmarPublicacao(Guid messageId)
     {
+        var reparo = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosReparo,
+            item => item.MessageId == messageId && item.PublicadoEm == null);
+        _execucoes.UpdateOne(reparo, Builders<ExecucaoServico>.Update.Set("EventosReparo.$.PublicadoEm", DateTime.UtcNow).Inc(item => item.Versao, 1));
         var liberacao = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasLiberacao,
             item => item.MessageId == messageId && item.PublicadaEm == null);
         _execucoes.UpdateOne(liberacao, Builders<ExecucaoServico>.Update.Set("RespostasLiberacao.$.PublicadaEm", DateTime.UtcNow).Inc(item => item.Versao, 1));

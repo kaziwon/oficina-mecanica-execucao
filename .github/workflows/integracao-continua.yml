@@ -30,23 +30,22 @@ jobs:
       sqs:
         image: softwaremill/elasticmq:1.7.1
         ports: ["9324:9324"]
-      mongo:
-        image: mongo:8.0
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok'"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
     env:
       SQS_TEST_ENDPOINT: http://127.0.0.1:9324
-      MONGODB_TEST_CONNECTION_STRING: mongodb://127.0.0.1:27017
+      MONGODB_TEST_CONNECTION_STRING: mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Iniciar MongoDB com transacoes locais
+        run: |
+          docker run --detach --name mongo --hostname mongo --publish 127.0.0.1:27017:27017 mongo:8.0 --replSet rs0 --bind_ip_all
+          for attempt in {1..60}; do
+            if docker exec mongo mongosh --quiet --eval 'db.adminCommand({ping:1}).ok'; then break; fi
+            sleep 1
+          done
+          docker exec --interactive mongo mongosh --quiet --file /dev/stdin < infra/local/mongo-replica-init.js
       - run: dotnet restore OficinaMecanica.Execucao.slnx
       - run: >-
           dotnet test OficinaMecanica.Execucao.slnx --configuration Release --no-restore
@@ -58,3 +57,6 @@ jobs:
           name: cobertura-execucao
           path: TestResults/**/coverage.cobertura.xml
           if-no-files-found: warn
+      - name: Encerrar MongoDB de teste
+        if: always()
+        run: docker rm --force mongo

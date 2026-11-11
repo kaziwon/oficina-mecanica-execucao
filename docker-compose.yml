@@ -1,8 +1,19 @@
 name: oficina-mecanica-execucao-fase4
 
 services:
+  mongo-keyfile:
+    image: mongo:8.0
+    user: "0:0"
+    entrypoint: ["/bin/bash", "/scripts/mongo-keyfile.sh"]
+    volumes:
+      - mongo_keys:/keys
+      - ./infra/local/mongo-keyfile.sh:/scripts/mongo-keyfile.sh:ro
+
   mongo:
     image: mongo:8.0
+    command: ["--replSet", "rs0", "--bind_ip_all", "--keyFile", "/keys/mongo-keyfile"]
+    depends_on:
+      mongo-keyfile: { condition: service_completed_successfully }
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?Informe MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?Informe MONGO_ROOT_PASSWORD}
@@ -14,6 +25,7 @@ services:
       - "127.0.0.1:${MONGO_PORT:-27018}:27017"
     volumes:
       - execucao_data:/data/db
+      - mongo_keys:/keys:ro
       - ./infra/local/mongo-init.js:/docker-entrypoint-initdb.d/01-execucao.js:ro
     healthcheck:
       test: ["CMD-SHELL", "mongosh --quiet --host 127.0.0.1 --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 }).ok'"]
@@ -22,11 +34,22 @@ services:
       retries: 30
       start_period: 15s
 
+  mongo-replica-init:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    entrypoint: ["/bin/bash", "-c"]
+    command: ['exec mongosh --quiet --host mongo --username "$$MONGO_INITDB_ROOT_USERNAME" --password "$$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin /scripts/mongo-replica-init.js']
+    volumes: ["./infra/local/mongo-replica-init.js:/scripts/mongo-replica-init.js:ro"]
+    depends_on:
+      mongo: { condition: service_healthy }
+
   api:
     build: .
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      MongoSettings__ConnectionString: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/${MONGO_DATABASE}?authSource=${MONGO_DATABASE}"
+      MongoSettings__ConnectionString: "mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017/${MONGO_DATABASE}?authSource=${MONGO_DATABASE}&replicaSet=rs0&directConnection=true"
       MongoSettings__DatabaseName: ${MONGO_DATABASE}
       JwtSettings__SecretKey: ${JWT_SECRET:?Informe JWT_SECRET}
       AdminUserSettings__Username: ${ADMIN_USERNAME:-admin}
@@ -34,8 +57,9 @@ services:
     ports:
       - "127.0.0.1:${API_PORT:-18082}:8080"
     depends_on:
-      mongo:
-        condition: service_healthy
+      mongo-replica-init:
+        condition: service_completed_successfully
 
 volumes:
+  mongo_keys:
   execucao_data:

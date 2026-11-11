@@ -49,6 +49,16 @@ public class ExecucoesController : ControllerBase
         return execucao is null ? NotFound() : Ok(execucao);
     }
 
+    [HttpPost("{id:guid}/iniciar-reparo")]
+    [ProducesResponseType(typeof(ExecucaoResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public IActionResult IniciarReparo(Guid id)
+    {
+        var execucao = _controller.IniciarReparo(id);
+        return execucao is null ? NotFound() : Ok(execucao);
+    }
+
     [HttpPost("{id:guid}/concluir-diagnostico")]
     [ProducesResponseType(typeof(ExecucaoResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
