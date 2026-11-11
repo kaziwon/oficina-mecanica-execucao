@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IEntradaExecucaoGateway, EntradaExecucaoGateway>();
         services.AddScoped<ProcessarComandoEntradaUseCase>();
         services.AddScoped<ProcessarRecusaOrcamentoUseCase>();
+        services.AddScoped<ProcessarLiberacaoExecucaoUseCase>();
         services.AddScoped<IntegracaoCleanController>();
         services.AddOptions<MongoSettings>().Bind(configuration.GetSection("MongoSettings"))
             .Validate(settings => !string.IsNullOrWhiteSpace(settings.ConnectionString)

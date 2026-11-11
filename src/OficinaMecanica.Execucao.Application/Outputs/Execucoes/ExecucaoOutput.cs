@@ -12,6 +12,9 @@ public class ExecucaoOutput
     public DateTime CriadaEm { get; set; }
     public DateTime? DiagnosticoIniciadoEm { get; set; }
     public DateTime? DiagnosticoConcluidoEm { get; set; }
+    public Guid? OrcamentoId { get; set; }
+    public Guid? PagamentoId { get; set; }
+    public DateTime? LiberadaEm { get; set; }
     public long Versao { get; set; }
     public List<ItemServicoDiagnosticoOutput> Servicos { get; set; } = [];
     public List<ItemPecaDiagnosticoOutput> PecasInsumos { get; set; } = [];

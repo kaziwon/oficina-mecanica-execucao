@@ -19,6 +19,8 @@ public class ExecucaoServico
     public List<RespostaEntrada> RespostasEntrada { get; set; } = [];
     public List<EventoDiagnostico> EventosDiagnostico { get; set; } = [];
     public List<RespostaRecusaOrcamento> RespostasRecusaOrcamento { get; set; } = [];
+    public List<RespostaLiberacaoExecucao> RespostasLiberacao { get; set; } = [];
+    public AutorizacaoExecucao? Autorizacao { get; set; }
     public List<ItemServicoDiagnostico> Servicos { get; set; } = [];
     public List<ItemPecaDiagnostico> PecasInsumos { get; set; } = [];
     public List<HistoricoExecucao> Historico { get; set; } = [];
@@ -38,6 +40,22 @@ public class ExecucaoServico
         if (Status != StatusExecucao.AguardandoDiagnostico)
             throw new RegraNegocioException("O diagnostico ja iniciou; esta compensacao exige tratamento explicito.");
         RegistrarStatus(StatusExecucao.Cancelada, DateTime.UtcNow);
+    }
+
+    public void LiberarExecucao(AutorizacaoExecucao autorizacao)
+    {
+        if (Status != StatusExecucao.AguardandoLiberacao || !DiagnosticoConcluidoEm.HasValue
+            || !EntradaRegistrada || !SagaId.HasValue || Autorizacao is not null)
+            throw new RegraNegocioException("A execucao nao esta aguardando sua primeira liberacao.");
+        if (autorizacao is null || autorizacao.OrcamentoId == Guid.Empty || autorizacao.PagamentoId == Guid.Empty
+            || autorizacao.MensagemLiberacaoId == Guid.Empty || autorizacao.ConfirmacaoPagamentoId == Guid.Empty
+            || string.IsNullOrWhiteSpace(autorizacao.ProvedorId) || autorizacao.ProvedorId.Length > 100
+            || autorizacao.ProvedorId.Any(char.IsControl) || autorizacao.ValorPago <= 0
+            || autorizacao.ValorPago != Servicos.Sum(item => item.Preco) + PecasInsumos.Sum(item => item.Quantidade * item.PrecoUnitario))
+            throw new RegraNegocioException("A autorizacao financeira diverge do diagnostico.");
+        autorizacao.LiberadaEm = DateTime.UtcNow;
+        Autorizacao = autorizacao;
+        RegistrarStatus(StatusExecucao.AguardandoExecucao, autorizacao.LiberadaEm);
     }
 
     public void CancelarPorRecusaOrcamento()

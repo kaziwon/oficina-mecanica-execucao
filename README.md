@@ -281,13 +281,36 @@ diagnostico, itens ou historico e nao devolve estoque que nao foi reservado.
 
 O [guia central da resposta ao orcamento](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/04-resposta-orcamento.md)
 inclui o contrato e o teste HTTP. Aprovacao ainda nao libera o reparo: falta
-integrar pagamento e a autorizacao de Execucao.
+confirmar o pagamento e receber a autorizacao da Saga, conforme a etapa abaixo.
+
+## Liberacao apos pagamento
+
+Ordens envia LiberarExecucao somente apos receber PagamentoConfirmado. Execucao
+valida o vinculo com a entrada original, os IDs e o valor pago contra a copia
+dos itens do diagnostico, sem consultar o banco de Cobranca. O preco atual do
+catalogo nao altera esse valor. O comando pertence a integracao interna; nenhum
+body HTTP permite informar pagamento confirmado ou forcar a liberacao.
+
+A autorizacao, o status AguardandoExecucao, o historico e a resposta
+ExecucaoLiberada sao salvos juntos no documento Mongo, com controle de versao.
+Reentregas nao duplicam a autorizacao. A Saga so muda a OS para
+AguardandoExecucao depois de receber essa resposta. Se a regra de negocio
+recusar, responde LiberacaoExecucaoRecusada e Ordens exige intervencao, sem
+apagar o pagamento confirmado ou solicitar outra cobranca.
+
+GET /api/execucoes/{id} agora mostra orcamentoId, pagamentoId e liberadaEm.
+GET /api/execucoes?status=AguardandoExecucao consulta a fila autorizada.
+Esta etapa nao reserva/consome estoque e nao inicia o reparo. Execucoes
+historicas nao sao liberadas retroativamente.
+
+O [guia central de liberacao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/06-liberacao-execucao.md)
+inclui o contrato, os estados intermediarios e o teste HTTP automatizado.
 
 ## Proximos incrementos
 
 - Reserva de pecas e liberacao da reserva com idempotencia.
 - Eventos de reparo e coordenacao das proximas etapas por Ordens.
-- Inicio e finalizacao dos reparos condicionados a liberacao da Saga.
+- Inicio e finalizacao dos reparos usando a autorizacao persistida da Saga.
 - Qualidade com Sonar, verificacao de 80% e BDD distribuido.
 - Kubernetes, Terraform, CD e observabilidade distribuida no New Relic.
 
