@@ -138,7 +138,7 @@ public class InicioReparoTests
         (await client.DeleteAsync($"/api/pecas/{id}")).EnsureSuccessStatusCode();
     }
 
-    private static ExecucaoServico Criar(ExecucaoApiFactory factory, int estoque, Guid? pecaId = null)
+    internal static ExecucaoServico Criar(ExecucaoApiFactory factory, int estoque, Guid? pecaId = null)
     {
         using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MongoDbContext>();
         var id = pecaId ?? Guid.NewGuid(); var saga = Guid.NewGuid(); var liberacao = Guid.NewGuid(); var pagamento = Guid.NewGuid(); var orcamento = Guid.NewGuid();

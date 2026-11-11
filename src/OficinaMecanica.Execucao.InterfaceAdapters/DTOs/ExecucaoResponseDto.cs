@@ -16,6 +16,7 @@ public class ExecucaoResponseDto
     public Guid? PagamentoId { get; set; }
     public DateTime? LiberadaEm { get; set; }
     public DateTime? ReparoIniciadoEm { get; set; }
+    public DateTime? ReparoConcluidoEm { get; set; }
     public List<ReservaPecaResponseDto> ReservasPecas { get; set; } = [];
     public long Versao { get; set; }
     public List<ItemServicoDiagnosticoResponseDto> Servicos { get; set; } = [];

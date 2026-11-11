@@ -85,6 +85,9 @@ public static class DependencyInjection
         services.AddScoped<IInicioReparoDataSource, MongoInicioReparoDataSource>();
         services.AddScoped<IInicioReparoGateway, InicioReparoGateway>();
         services.AddScoped<IniciarReparoUseCase>();
+        services.AddScoped<IConclusaoReparoDataSource, MongoConclusaoReparoDataSource>();
+        services.AddScoped<IConclusaoReparoGateway, ConclusaoReparoGateway>();
+        services.AddScoped<ConcluirReparoUseCase>();
         services.AddScoped<LoginUseCase>();
         services.AddScoped<CriarServicoUseCase>();
         services.AddScoped<AtualizarServicoUseCase>();
