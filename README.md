@@ -12,6 +12,7 @@ trabalho e diagnostico. Usa MongoDB proprio e nao acessa o banco de Ordens.
 - Inicio e conclusao do diagnostico, com historico e controle de versao.
 - Copia dos nomes e precos dos itens indicados no diagnostico.
 - Autorizacao pela Saga apos pagamento, reserva de pecas e inicio explicito do reparo.
+- Conclusao do reparo com consumo transacional das reservas e evento para Ordens.
 - Swagger, healthchecks e logs JSON com correlacao.
 - Testes unitarios e de integracao com MongoDB real, CI e cobertura.
 
@@ -19,12 +20,12 @@ O fluxo disponivel nesta etapa e:
 
 ```text
 AguardandoDiagnostico -> EmDiagnostico -> AguardandoLiberacao
-  -> AguardandoExecucao -> EmExecucao
+  -> AguardandoExecucao -> EmExecucao -> Finalizada
 ```
 
 Ordens coordena a Saga e autoriza a fila apos aprovacao e pagamento em Cobranca.
 O reparo comeca somente por comando HTTP administrativo, depois dessa
-autorizacao. A finalizacao sera o proximo incremento.
+autorizacao. A conclusao do reparo tambem exige uma chamada administrativa explicita.
 A criacao manual permanece disponivel para administradores, mas nao permite
 inventar autorizacao financeira ou iniciar o reparo de uma entrada sem Saga.
 Execucao nunca acessa o banco de Ordens; confirmacoes e recusas voltam por eventos.
@@ -116,7 +117,7 @@ a versao que foi lida, impedindo sobrescrever uma alteracao concorrente. Uma
 requisicao desatualizada recebe HTTP 409 e deve consultar o registro novamente.
 
 Atualizar nome, descricao ou preco de uma peca nao altera o estoque. O saldo
-muda somente pela API de movimentacoes nesta etapa. Concluir o diagnostico
+muda pela API de movimentacoes e pelo consumo das reservas na conclusao do reparo. Concluir o diagnostico
 registra itens sem retirar pecas. Iniciar o reparo reserva os itens do
 diagnostico, sem consumo fisico. As respostas de pecas mostram
 quantidadeEstoque, quantidadeReservada e quantidadeDisponivel. Saidas manuais
@@ -233,6 +234,7 @@ os itens do diagnostico ja registrado.
 | POST | `/api/execucoes/{id}/iniciar-diagnostico` | Iniciar diagnostico |
 | POST | `/api/execucoes/{id}/concluir-diagnostico` | Registrar diagnostico e itens |
 | POST | `/api/execucoes/{id}/iniciar-reparo` | Reservar pecas e iniciar reparo autorizado |
+| POST | `/api/execucoes/{id}/concluir-reparo` | Consumir reservas e finalizar reparo |
 
 Para movimentar estoque, envie `{ "quantidade": 3 }` para entrada ou
 `{ "quantidade": -2 }` para saida. Saldo insuficiente retorna 409; quantidade
@@ -329,16 +331,31 @@ reserva, historico ou evento. Uma execucao somente com servicos nao reserva peca
 
 Ordens avanca para EmExecucao ao receber o evento. O reparo nao inicia ao pagar
 ou liberar a fila. GET /api/execucoes/{id} mostra reparoIniciadoEm e reservasPecas.
-A reserva reduz o disponivel, nao o saldo fisico. Finalizacao, consumo e
-compensacao dessas reservas serao o proximo incremento; nao cancele uma execucao
+A reserva reduz o disponivel, nao o saldo fisico. A conclusao abaixo consome
+as reservas. Compensacoes continuam pendentes; nao cancele uma execucao
 iniciada usando os endpoints de cancelamento anteriores.
 
 O [guia central de inicio do reparo](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/07-inicio-reparo.md)
 explica a transacao, as mensagens e o roteiro HTTP de falta de saldo e reposicao.
 
+## Conclusao do reparo
+
+POST /api/execucoes/{id}/concluir-reparo, sem body, exige JWT administrativo,
+inicio confirmado localmente e reservas integras. Uma transacao Mongo baixa o
+estoque fisico e o reservado, marca consumidaEm nas reservas e salva Finalizada,
+historico e outbox ReparoConcluido. Uma falha em qualquer peca desfaz a operacao
+inteira. Nao ha nova cobranca e chamadas repetidas nao repetem o consumo.
+
+GET /api/execucoes/{id} preserva diagnostico, itens, reservas e historico,
+incluindo reparoConcluidoEm. Finalizadas saem da fila operacional. Ordens
+finaliza a OS ao receber o evento, mas nao marca o veiculo como entregue.
+
+O [guia central de conclusao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/08-conclusao-reparo.md)
+explica estados, mensagens fora de ordem, rollback e o teste HTTP completo.
+
 ## Proximos incrementos
 
-- Conclusao do reparo e consumo das reservas ou sua liberacao em compensacoes.
+- Liberacao de reservas em compensacoes explicitas, sem presumir estorno.
 - Qualidade com Sonar, verificacao de 80% e BDD distribuido.
 - Kubernetes, Terraform, CD e observabilidade distribuida no New Relic.
 

@@ -46,7 +46,7 @@ public class InicioReparoTests
         Assert.Equal(3, peca.QuantidadeReservada);
     }
 
-    private static ExecucaoServico Nova()
+    internal static ExecucaoServico Nova()
     {
         var saga = Guid.NewGuid(); var liberacao = Guid.NewGuid(); var pagamento = Guid.NewGuid(); var orcamento = Guid.NewGuid();
         return new ExecucaoServico

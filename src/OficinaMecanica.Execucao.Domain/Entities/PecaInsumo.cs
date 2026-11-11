@@ -17,4 +17,13 @@ public class PecaInsumo
             throw new Exceptions.RegraNegocioException("Peca inativa ou estoque disponivel insuficiente para a reserva.");
         QuantidadeReservada += quantidade;
     }
+
+    public void ConsumirReserva(int quantidade)
+    {
+        if (!Ativo || quantidade <= 0 || QuantidadeReservada < quantidade || QuantidadeEstoque < quantidade
+            || QuantidadeReservada > QuantidadeEstoque)
+            throw new Exceptions.RegraNegocioException("Peca inativa ou saldo inconsistente para consumir a reserva.");
+        QuantidadeEstoque -= quantidade;
+        QuantidadeReservada -= quantidade;
+    }
 }

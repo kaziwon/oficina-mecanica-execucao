@@ -22,8 +22,10 @@ public class ExecucaoServico
     public List<RespostaLiberacaoExecucao> RespostasLiberacao { get; set; } = [];
     public AutorizacaoExecucao? Autorizacao { get; set; }
     public DateTime? ReparoIniciadoEm { get; set; }
+    public DateTime? ReparoConcluidoEm { get; set; }
     public List<ReservaPeca> ReservasPecas { get; set; } = [];
     public List<EventoReparo> EventosReparo { get; set; } = [];
+    public List<EventoConclusaoReparo> EventosConclusaoReparo { get; set; } = [];
     public List<ItemServicoDiagnostico> Servicos { get; set; } = [];
     public List<ItemPecaDiagnostico> PecasInsumos { get; set; } = [];
     public List<HistoricoExecucao> Historico { get; set; } = [];
@@ -90,6 +92,42 @@ public class ExecucaoServico
             ProvedorId = Autorizacao.ProvedorId,
             ValorPago = Autorizacao.ValorPago,
             IniciadoEm = agora
+        });
+        return true;
+    }
+
+    public bool ConcluirReparo()
+    {
+        if (ReparoConcluidoEm.HasValue) return false;
+        var inicio = EventosReparo.SingleOrDefault();
+        if (Status != StatusExecucao.EmExecucao || !ReparoIniciadoEm.HasValue || Autorizacao is null
+            || !SagaId.HasValue || inicio is null || inicio.SagaId != SagaId
+            || inicio.PagamentoId != Autorizacao.PagamentoId || inicio.OrcamentoId != Autorizacao.OrcamentoId
+            || inicio.CausationId != Autorizacao.MensagemLiberacaoId || inicio.IniciadoEm != ReparoIniciadoEm
+            || ReservasPecas.Any(item => item.PecaInsumoId == Guid.Empty || item.Quantidade <= 0 || item.ConsumidaEm.HasValue)
+            || !ReservasPecas.OrderBy(item => item.PecaInsumoId).Select(item => (item.PecaInsumoId, item.Quantidade))
+                .SequenceEqual(PecasInsumos.OrderBy(item => item.PecaInsumoId).Select(item => (item.PecaInsumoId, item.Quantidade)))
+            || ReservasPecas.Select(item => item.PecaInsumoId).Distinct().Count() != ReservasPecas.Count)
+            throw new RegraNegocioException("O reparo exige inicio autorizado e reservas integras para conclusao.");
+        var agora = DateTime.UtcNow;
+        if (agora < ReparoIniciadoEm.Value)
+            throw new RegraNegocioException("A conclusao nao pode ocorrer antes do inicio do reparo.");
+        foreach (var reserva in ReservasPecas) reserva.ConsumidaEm = agora;
+        ReparoConcluidoEm = agora;
+        RegistrarStatus(StatusExecucao.Finalizada, agora);
+        EventosConclusaoReparo.Add(new EventoConclusaoReparo
+        {
+            SagaId = SagaId.Value,
+            CausationId = Autorizacao.MensagemLiberacaoId,
+            CorrelationId = inicio.CorrelationId,
+            OrdemServicoId = OrdemServicoId,
+            ExecucaoId = Id,
+            OrcamentoId = Autorizacao.OrcamentoId,
+            PagamentoId = Autorizacao.PagamentoId,
+            ProvedorId = Autorizacao.ProvedorId,
+            ValorPago = Autorizacao.ValorPago,
+            IniciadoEm = ReparoIniciadoEm.Value,
+            ConcluidoEm = agora
         });
         return true;
     }
