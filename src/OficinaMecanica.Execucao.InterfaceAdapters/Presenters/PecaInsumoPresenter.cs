@@ -11,6 +11,8 @@ public static class PecaInsumoPresenter
         Nome = output.Nome,
         Descricao = output.Descricao,
         PrecoUnitario = output.PrecoUnitario,
-        QuantidadeEstoque = output.QuantidadeEstoque
+        QuantidadeEstoque = output.QuantidadeEstoque,
+        QuantidadeReservada = output.QuantidadeReservada,
+        QuantidadeDisponivel = output.QuantidadeDisponivel
     };
 }

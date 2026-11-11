@@ -9,4 +9,6 @@ public class PecaInsumoOutput
     public string Descricao { get; set; } = string.Empty;
     public decimal PrecoUnitario { get; set; }
     public int QuantidadeEstoque { get; set; }
+    public int QuantidadeReservada { get; set; }
+    public int QuantidadeDisponivel { get; set; }
 }

@@ -1,0 +1,8 @@
+namespace OficinaMecanica.Execucao.InterfaceAdapters.DTOs;
+
+public class ReservaPecaResponseDto
+{
+    public Guid PecaInsumoId { get; set; }
+    public int Quantidade { get; set; }
+    public DateTime ReservadaEm { get; set; }
+}

@@ -21,6 +21,9 @@ public class ExecucaoServico
     public List<RespostaRecusaOrcamento> RespostasRecusaOrcamento { get; set; } = [];
     public List<RespostaLiberacaoExecucao> RespostasLiberacao { get; set; } = [];
     public AutorizacaoExecucao? Autorizacao { get; set; }
+    public DateTime? ReparoIniciadoEm { get; set; }
+    public List<ReservaPeca> ReservasPecas { get; set; } = [];
+    public List<EventoReparo> EventosReparo { get; set; } = [];
     public List<ItemServicoDiagnostico> Servicos { get; set; } = [];
     public List<ItemPecaDiagnostico> PecasInsumos { get; set; } = [];
     public List<HistoricoExecucao> Historico { get; set; } = [];
@@ -56,6 +59,39 @@ public class ExecucaoServico
         autorizacao.LiberadaEm = DateTime.UtcNow;
         Autorizacao = autorizacao;
         RegistrarStatus(StatusExecucao.AguardandoExecucao, autorizacao.LiberadaEm);
+    }
+
+    public bool IniciarReparo()
+    {
+        if (ReparoIniciadoEm.HasValue) return false;
+        var liberacao = RespostasLiberacao.SingleOrDefault(item => item.Tipo == "ExecucaoLiberada"
+            && item.CausationId == Autorizacao?.MensagemLiberacaoId);
+        if (Status != StatusExecucao.AguardandoExecucao || Autorizacao is null || !SagaId.HasValue
+            || !EntradaRegistrada || !DiagnosticoConcluidoEm.HasValue || liberacao is null
+            || liberacao.PagamentoId != Autorizacao.PagamentoId || liberacao.OrcamentoId != Autorizacao.OrcamentoId
+            || liberacao.SagaId != SagaId || ReservasPecas.Count != 0
+            || PecasInsumos.Any(item => item.PecaInsumoId == Guid.Empty || item.Quantidade <= 0)
+            || PecasInsumos.Select(item => item.PecaInsumoId).Distinct().Count() != PecasInsumos.Count)
+            throw new RegraNegocioException("O reparo exige uma execucao liberada pela Saga e ainda nao iniciada.");
+        var agora = DateTime.UtcNow;
+        ReservasPecas = PecasInsumos.Select(item => new ReservaPeca
+        { PecaInsumoId = item.PecaInsumoId, Quantidade = item.Quantidade, ReservadaEm = agora }).ToList();
+        ReparoIniciadoEm = agora;
+        RegistrarStatus(StatusExecucao.EmExecucao, agora);
+        EventosReparo.Add(new EventoReparo
+        {
+            SagaId = SagaId.Value,
+            CausationId = Autorizacao.MensagemLiberacaoId,
+            CorrelationId = liberacao.CorrelationId,
+            OrdemServicoId = OrdemServicoId,
+            ExecucaoId = Id,
+            OrcamentoId = Autorizacao.OrcamentoId,
+            PagamentoId = Autorizacao.PagamentoId,
+            ProvedorId = Autorizacao.ProvedorId,
+            ValorPago = Autorizacao.ValorPago,
+            IniciadoEm = agora
+        });
+        return true;
     }
 
     public void CancelarPorRecusaOrcamento()

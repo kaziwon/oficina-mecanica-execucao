@@ -18,6 +18,9 @@ public static class ExecucaoPresenter
         OrcamentoId = output.OrcamentoId,
         PagamentoId = output.PagamentoId,
         LiberadaEm = output.LiberadaEm,
+        ReparoIniciadoEm = output.ReparoIniciadoEm,
+        ReservasPecas = output.ReservasPecas.Select(item => new ReservaPecaResponseDto
+        { PecaInsumoId = item.PecaInsumoId, Quantidade = item.Quantidade, ReservadaEm = item.ReservadaEm }).ToList(),
         Versao = output.Versao,
         Historico = output.Historico.Select(item => new HistoricoExecucaoResponseDto
         {

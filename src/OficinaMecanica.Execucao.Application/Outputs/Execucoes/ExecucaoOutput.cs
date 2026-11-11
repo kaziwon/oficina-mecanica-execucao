@@ -15,6 +15,8 @@ public class ExecucaoOutput
     public Guid? OrcamentoId { get; set; }
     public Guid? PagamentoId { get; set; }
     public DateTime? LiberadaEm { get; set; }
+    public DateTime? ReparoIniciadoEm { get; set; }
+    public List<ReservaPecaOutput> ReservasPecas { get; set; } = [];
     public long Versao { get; set; }
     public List<ItemServicoDiagnosticoOutput> Servicos { get; set; } = [];
     public List<ItemPecaDiagnosticoOutput> PecasInsumos { get; set; } = [];

@@ -14,7 +14,9 @@ internal static class PecaInsumoOutputMapper
             Nome = pecaInsumo.Nome,
             Descricao = pecaInsumo.Descricao,
             PrecoUnitario = pecaInsumo.PrecoUnitario,
-            QuantidadeEstoque = pecaInsumo.QuantidadeEstoque
+            QuantidadeEstoque = pecaInsumo.QuantidadeEstoque,
+            QuantidadeReservada = pecaInsumo.QuantidadeReservada,
+            QuantidadeDisponivel = pecaInsumo.QuantidadeDisponivel
         };
     }
 }

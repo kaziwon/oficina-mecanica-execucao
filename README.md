@@ -3,7 +3,7 @@
 Microsservico responsavel pelo catalogo de servicos e pecas, estoque, fila de
 trabalho e diagnostico. Usa MongoDB proprio e nao acessa o banco de Ordens.
 
-## Escopo deste primeiro incremento
+## Escopo implementado
 
 - Login administrativo com JWT.
 - CRUD de servicos e pecas/insumos, com desativacao logica.
@@ -11,6 +11,7 @@ trabalho e diagnostico. Usa MongoDB proprio e nao acessa o banco de Ordens.
 - Registro de uma execucao vinculada ao ID de uma OS e consulta da fila.
 - Inicio e conclusao do diagnostico, com historico e controle de versao.
 - Copia dos nomes e precos dos itens indicados no diagnostico.
+- Autorizacao pela Saga apos pagamento, reserva de pecas e inicio explicito do reparo.
 - Swagger, healthchecks e logs JSON com correlacao.
 - Testes unitarios e de integracao com MongoDB real, CI e cobertura.
 
@@ -18,12 +19,14 @@ O fluxo disponivel nesta etapa e:
 
 ```text
 AguardandoDiagnostico -> EmDiagnostico -> AguardandoLiberacao
+  -> AguardandoExecucao -> EmExecucao
 ```
 
-Os proximos estados, incluindo reparo e finalizacao, serao conectados a liberacao
-da Saga apos aprovacao e pagamento. O primeiro trecho de comunicacao com Ordens
-ja registra a entrada automaticamente por mensagens. Nao ha integracao com
-Cobranca nesta etapa. A criacao manual permanece disponivel para administradores.
+Ordens coordena a Saga e autoriza a fila apos aprovacao e pagamento em Cobranca.
+O reparo comeca somente por comando HTTP administrativo, depois dessa
+autorizacao. A finalizacao sera o proximo incremento.
+A criacao manual permanece disponivel para administradores, mas nao permite
+inventar autorizacao financeira ou iniciar o reparo de uma entrada sem Saga.
 Execucao nunca acessa o banco de Ordens; confirmacoes e recusas voltam por eventos.
 
 ## Primeiro contrato de integracao
@@ -37,7 +40,8 @@ explica como executar os dois servicos juntos, sem AWS.
 
 O documento da execucao guarda tambem a Saga, as respostas e a identificacao dos
 comandos processados. A entrada e sua resposta sao gravadas juntas, sem exigir
-transacao entre colecoes ou replica set. Um indice unico impede reutilizar um
+transacao entre colecoes. O inicio do reparo, descrito abaixo, usa uma
+transacao local entre execucao e pecas. Um indice unico impede reutilizar um
 messageId em outra OS. Uma versao desatualizada nao pode sobrescrever a resposta
 ou seu estado de publicacao.
 
@@ -88,7 +92,8 @@ Controller HTTP -> Controller Clean -> Use case -> Interface do gateway
                               Gateway -> Interface da source -> Source Mongo -> MongoDB
 ```
 
-Cada source trata sua colecao, sem repositorio generico. O `Program.cs` e
+Sources tratam a persistencia, sem repositorio generico. A source de inicio
+do reparo coordena uma transacao no mesmo banco de Execucao. O `Program.cs` e
 `DependencyInjection.cs` registram e conectam as implementacoes.
 
 ## MongoDB
@@ -111,9 +116,11 @@ a versao que foi lida, impedindo sobrescrever uma alteracao concorrente. Uma
 requisicao desatualizada recebe HTTP 409 e deve consultar o registro novamente.
 
 Atualizar nome, descricao ou preco de uma peca nao altera o estoque. O saldo
-muda somente pela API de movimentacoes. Concluir o diagnostico registra os
-itens necessarios sem retirar pecas; reservas e compensacoes serao implementadas
-na etapa da Saga.
+muda somente pela API de movimentacoes nesta etapa. Concluir o diagnostico
+registra itens sem retirar pecas. Iniciar o reparo reserva os itens do
+diagnostico, sem consumo fisico. As respostas de pecas mostram
+quantidadeEstoque, quantidadeReservada e quantidadeDisponivel. Saidas manuais
+nao podem usar o saldo reservado; pecas com reserva nao podem ser desativadas.
 
 ## Executar localmente
 
@@ -124,7 +131,11 @@ docker compose --env-file .env.example up --build
 ```
 
 Esse comando cria um MongoDB exclusivo com volume persistente, um usuario da
-aplicacao com acesso apenas ao banco `execucao` e a API. As credenciais do
+aplicacao com acesso apenas ao banco `execucao` e a API. Prepara tambem o
+replica set rs0 de um no, necessario as transacoes locais. Os auxiliares
+mongo-keyfile e mongo-replica-init encerram apos preparar autenticacao interna
+e eleger o primary. Nao e alta disponibilidade. Volumes existentes sao
+preservados; nao apague os volumes para atualizar esta versao. As credenciais do
 `.env.example` sao de desenvolvimento; valores reais podem vir de um `.env`
 ignorado pelo Git ou das variaveis do ambiente de deploy.
 
@@ -221,6 +232,7 @@ os itens do diagnostico ja registrado.
 | GET | `/api/execucoes/{id}` | Consultar execucao e historico |
 | POST | `/api/execucoes/{id}/iniciar-diagnostico` | Iniciar diagnostico |
 | POST | `/api/execucoes/{id}/concluir-diagnostico` | Registrar diagnostico e itens |
+| POST | `/api/execucoes/{id}/iniciar-reparo` | Reservar pecas e iniciar reparo autorizado |
 
 Para movimentar estoque, envie `{ "quantidade": 3 }` para entrada ou
 `{ "quantidade": -2 }` para saida. Saldo insuficiente retorna 409; quantidade
@@ -239,8 +251,8 @@ dotnet test tests/OficinaMecanica.Execucao.UnitTests --configuration Release
 Para executar tambem a integracao com MongoDB real:
 
 ```bash
-docker compose --env-file .env.example up -d mongo
-export MONGODB_TEST_CONNECTION_STRING='mongodb://execucao_root:LocalMongoRoot123@127.0.0.1:27018/?authSource=admin'
+docker compose --env-file .env.example up -d mongo-replica-init
+export MONGODB_TEST_CONNECTION_STRING='mongodb://execucao_root:LocalMongoRoot123@127.0.0.1:27018/?authSource=admin&replicaSet=rs0&directConnection=true'
 dotnet test OficinaMecanica.Execucao.slnx --configuration Release --collect:"XPlat Code Coverage" --results-directory TestResults
 ```
 
@@ -248,7 +260,7 @@ Os testes criam bancos isolados com prefixo `execucao_test_` e os removem ao
 terminar. A conexao de testes precisa poder criar e remover esses bancos. Sem
 a variavel, os testes Mongo sao explicitamente marcados como ignorados.
 
-O GitHub Actions configura essa variavel e inicia um Mongo temporario no proprio
+O GitHub Actions configura essa variavel e inicia um Mongo replica set temporario no proprio
 runner, executando a integracao real. A pipeline faz build, testes e publica a
 cobertura como artefato. Nao publica imagem, nao faz deploy e nao usa a AWS.
 
@@ -306,11 +318,27 @@ historicas nao sao liberadas retroativamente.
 O [guia central de liberacao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/06-liberacao-execucao.md)
 inclui o contrato, os estados intermediarios e o teste HTTP automatizado.
 
+## Inicio explicito do reparo
+
+POST /api/execucoes/{id}/iniciar-reparo, sem body, exige JWT administrativo e
+autorizacao persistida da Saga. Reserva todas as pecas do diagnostico e grava
+EmExecucao, historico e outbox ReparoIniciado em uma transacao local Mongo.
+Uma falta de estoque retorna 409 e desfaz tudo; apos repor o saldo, a chamada
+pode ser repetida. Chamadas de inicio repetidas apos sucesso nao duplicam
+reserva, historico ou evento. Uma execucao somente com servicos nao reserva pecas.
+
+Ordens avanca para EmExecucao ao receber o evento. O reparo nao inicia ao pagar
+ou liberar a fila. GET /api/execucoes/{id} mostra reparoIniciadoEm e reservasPecas.
+A reserva reduz o disponivel, nao o saldo fisico. Finalizacao, consumo e
+compensacao dessas reservas serao o proximo incremento; nao cancele uma execucao
+iniciada usando os endpoints de cancelamento anteriores.
+
+O [guia central de inicio do reparo](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/07-inicio-reparo.md)
+explica a transacao, as mensagens e o roteiro HTTP de falta de saldo e reposicao.
+
 ## Proximos incrementos
 
-- Reserva de pecas e liberacao da reserva com idempotencia.
-- Eventos de reparo e coordenacao das proximas etapas por Ordens.
-- Inicio e finalizacao dos reparos usando a autorizacao persistida da Saga.
+- Conclusao do reparo e consumo das reservas ou sua liberacao em compensacoes.
 - Qualidade com Sonar, verificacao de 80% e BDD distribuido.
 - Kubernetes, Terraform, CD e observabilidade distribuida no New Relic.
 

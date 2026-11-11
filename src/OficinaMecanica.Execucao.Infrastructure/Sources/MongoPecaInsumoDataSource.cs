@@ -1,4 +1,6 @@
+using MongoDB.Bson;
 using MongoDB.Driver;
+using OficinaMecanica.Execucao.Domain.Exceptions;
 using OficinaMecanica.Execucao.Domain.Entities;
 using OficinaMecanica.Execucao.Infrastructure.Persistence;
 using OficinaMecanica.Execucao.InterfaceAdapters.DataSources;
@@ -20,14 +22,25 @@ public class MongoPecaInsumoDataSource : IPecaInsumoDataSource
         Builders<PecaInsumo>.Update.Set(item => item.Nome, peca.Nome)
             .Set(item => item.Descricao, peca.Descricao).Set(item => item.PrecoUnitario, peca.PrecoUnitario),
         new FindOneAndUpdateOptions<PecaInsumo> { ReturnDocument = ReturnDocument.After });
-    public bool Remover(Guid id) => _pecas.UpdateOne(item => item.Id == id && item.Ativo,
-        Builders<PecaInsumo>.Update.Set(item => item.Ativo, false)).ModifiedCount == 1;
+    public bool Remover(Guid id)
+    {
+        var semReserva = Builders<PecaInsumo>.Filter.Eq(item => item.QuantidadeReservada, 0)
+            | Builders<PecaInsumo>.Filter.Exists(item => item.QuantidadeReservada, false);
+        var removida = _pecas.UpdateOne(Builders<PecaInsumo>.Filter.Where(item => item.Id == id && item.Ativo) & semReserva,
+            Builders<PecaInsumo>.Update.Set(item => item.Ativo, false)).ModifiedCount == 1;
+        if (!removida && _pecas.Find(item => item.Id == id && item.Ativo).Any())
+            throw new RegraNegocioException("Pecas com reservas ativas nao podem ser desativadas.");
+        return removida;
+    }
 
     public PecaInsumo? MovimentarEstoque(Guid id, int quantidade)
     {
         if (quantidade == 0 || quantidade == int.MinValue) return null;
         var filter = Builders<PecaInsumo>.Filter;
-        var saldoValido = quantidade < 0 ? filter.Gte(item => item.QuantidadeEstoque, -quantidade)
+        var saldoValido = quantidade < 0 ? new BsonDocumentFilterDefinition<PecaInsumo>(new BsonDocument("$expr",
+            new BsonDocument("$gte", new BsonArray {
+                new BsonDocument("$subtract", new BsonArray { "$QuantidadeEstoque",
+                    new BsonDocument("$ifNull", new BsonArray { "$QuantidadeReservada", 0 }) }), -quantidade })))
             : filter.Lte(item => item.QuantidadeEstoque, int.MaxValue - quantidade);
         return _pecas.FindOneAndUpdate(filter.Eq(item => item.Id, id) & filter.Eq(item => item.Ativo, true) & saldoValido,
             Builders<PecaInsumo>.Update.Inc(item => item.QuantidadeEstoque, quantidade),

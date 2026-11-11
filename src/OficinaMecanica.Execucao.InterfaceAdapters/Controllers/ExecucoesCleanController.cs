@@ -13,15 +13,18 @@ public class ExecucoesCleanController
     private readonly ObterFilaExecucoesUseCase _fila;
     private readonly IniciarDiagnosticoUseCase _iniciar;
     private readonly ConcluirDiagnosticoUseCase _concluir;
+    private readonly IniciarReparoUseCase _iniciarReparo;
 
     public ExecucoesCleanController(CriarExecucaoUseCase criar, ObterExecucaoPorIdUseCase obter,
-        ObterFilaExecucoesUseCase fila, IniciarDiagnosticoUseCase iniciar, ConcluirDiagnosticoUseCase concluir)
+        ObterFilaExecucoesUseCase fila, IniciarDiagnosticoUseCase iniciar, ConcluirDiagnosticoUseCase concluir,
+        IniciarReparoUseCase iniciarReparo)
     {
         _criar = criar;
         _obter = obter;
         _fila = fila;
         _iniciar = iniciar;
         _concluir = concluir;
+        _iniciarReparo = iniciarReparo;
     }
 
     public ExecucaoResponseDto Criar(CriarExecucaoRequestDto request) => ExecucaoPresenter.Apresentar(
@@ -36,6 +39,11 @@ public class ExecucoesCleanController
     public ExecucaoResponseDto? IniciarDiagnostico(Guid id)
     {
         var output = _iniciar.Executar(id);
+        return output is null ? null : ExecucaoPresenter.Apresentar(output);
+    }
+    public ExecucaoResponseDto? IniciarReparo(Guid id)
+    {
+        var output = _iniciarReparo.Executar(id);
         return output is null ? null : ExecucaoPresenter.Apresentar(output);
     }
     public ExecucaoResponseDto? ConcluirDiagnostico(Guid id, ConcluirDiagnosticoRequestDto request)
