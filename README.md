@@ -270,6 +270,19 @@ Containers compartilham o kernel do runner; o bloqueio de inicializacao em
 kernels recentes e acompanhado no [SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912).
 Essa escolha preserva os testes com MongoDB real, sem desativar verificacoes do banco.
 
+## Recusa de orcamento
+
+O cancelamento por recusa de orcamento ja esta integrado: Ordens envia
+CancelarExecucaoPorRecusaOrcamento para a fila de comandos. Somente uma execucao
+diagnosticada em AguardandoLiberacao pode ser cancelada. Estado e resposta sao
+persistidos no mesmo documento; repeticoes nao duplicam efeitos. Se o reparo
+ja foi liberado/iniciado, a recusa exige intervencao na Saga. Nao apaga
+diagnostico, itens ou historico e nao devolve estoque que nao foi reservado.
+
+O [guia central da resposta ao orcamento](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/04-resposta-orcamento.md)
+inclui o contrato e o teste HTTP. Aprovacao ainda nao libera o reparo: falta
+integrar pagamento e a autorizacao de Execucao.
+
 ## Proximos incrementos
 
 - Reserva de pecas e liberacao da reserva com idempotencia.

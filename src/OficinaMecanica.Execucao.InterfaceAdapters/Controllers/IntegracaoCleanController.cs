@@ -6,6 +6,12 @@ namespace OficinaMecanica.Execucao.InterfaceAdapters.Controllers;
 public class IntegracaoCleanController
 {
     private readonly ProcessarComandoEntradaUseCase _processar;
-    public IntegracaoCleanController(ProcessarComandoEntradaUseCase processar) { _processar = processar; }
-    public void Processar(MensagemIntegracao mensagem) => _processar.Executar(mensagem);
+    private readonly ProcessarRecusaOrcamentoUseCase _recusa;
+    public IntegracaoCleanController(ProcessarComandoEntradaUseCase processar, ProcessarRecusaOrcamentoUseCase recusa)
+    { _processar = processar; _recusa = recusa; }
+    public void Processar(MensagemIntegracao mensagem)
+    {
+        if (mensagem.Type == "CancelarExecucaoPorRecusaOrcamento") _recusa.Executar(mensagem);
+        else _processar.Executar(mensagem);
+    }
 }
