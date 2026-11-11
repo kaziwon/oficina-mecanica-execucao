@@ -32,6 +32,9 @@ public class MongoDbContext
             Builders<PecaInsumo>.IndexKeys.Ascending(item => item.Nome),
             new CreateIndexOptions { Unique = true, Collation = NameCollation }), cancellationToken: cancellationToken);
         await Execucoes.Indexes.CreateManyAsync([
+            new CreateIndexModel<ExecucaoServico>(Builders<ExecucaoServico>.IndexKeys.Ascending("RespostasLiberacao.CausationId"),
+                new CreateIndexOptions<ExecucaoServico>
+                { Unique = true, PartialFilterExpression = Builders<ExecucaoServico>.Filter.Exists("RespostasLiberacao.CausationId") }),
             new CreateIndexModel<ExecucaoServico>(Builders<ExecucaoServico>.IndexKeys.Ascending("RespostasRecusaOrcamento.CausationId"),
                 new CreateIndexOptions<ExecucaoServico>
                 {

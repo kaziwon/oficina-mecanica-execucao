@@ -17,6 +17,9 @@ internal static class ExecucaoOutputMapper
             CriadaEm = execucao.CriadaEm,
             DiagnosticoIniciadoEm = execucao.DiagnosticoIniciadoEm,
             DiagnosticoConcluidoEm = execucao.DiagnosticoConcluidoEm,
+            OrcamentoId = execucao.Autorizacao?.OrcamentoId,
+            PagamentoId = execucao.Autorizacao?.PagamentoId,
+            LiberadaEm = execucao.Autorizacao?.LiberadaEm,
             Versao = execucao.Versao,
             Servicos = execucao.Servicos.Select(item => new ItemServicoDiagnosticoOutput
             {

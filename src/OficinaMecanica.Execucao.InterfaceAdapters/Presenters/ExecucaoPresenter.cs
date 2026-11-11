@@ -15,6 +15,9 @@ public static class ExecucaoPresenter
         CriadaEm = output.CriadaEm,
         DiagnosticoIniciadoEm = output.DiagnosticoIniciadoEm,
         DiagnosticoConcluidoEm = output.DiagnosticoConcluidoEm,
+        OrcamentoId = output.OrcamentoId,
+        PagamentoId = output.PagamentoId,
+        LiberadaEm = output.LiberadaEm,
         Versao = output.Versao,
         Historico = output.Historico.Select(item => new HistoricoExecucaoResponseDto
         {
