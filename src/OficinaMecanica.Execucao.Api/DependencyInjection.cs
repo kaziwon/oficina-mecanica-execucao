@@ -31,6 +31,9 @@ public static class DependencyInjection
         services.AddScoped<ProcessarComandoEntradaUseCase>();
         services.AddScoped<ProcessarRecusaOrcamentoUseCase>();
         services.AddScoped<ProcessarLiberacaoExecucaoUseCase>();
+        services.AddScoped<ProcessarCancelamentoPagoUseCase>();
+        services.AddScoped<ICancelamentoPagoDataSource, MongoCancelamentoPagoDataSource>();
+        services.AddScoped<ICancelamentoPagoGateway, CancelamentoPagoGateway>();
         services.AddScoped<IntegracaoCleanController>();
         services.AddOptions<MongoSettings>().Bind(configuration.GetSection("MongoSettings"))
             .Validate(settings => !string.IsNullOrWhiteSpace(settings.ConnectionString)

@@ -26,6 +26,8 @@ public class ExecucaoServico
     public List<ReservaPeca> ReservasPecas { get; set; } = [];
     public List<EventoReparo> EventosReparo { get; set; } = [];
     public List<EventoConclusaoReparo> EventosConclusaoReparo { get; set; } = [];
+    public List<RespostaCancelamentoPago> RespostasCancelamentoPago { get; set; } = [];
+    public DateTime? ReparoCanceladoEm { get; set; }
     public List<ItemServicoDiagnostico> Servicos { get; set; } = [];
     public List<ItemPecaDiagnostico> PecasInsumos { get; set; } = [];
     public List<HistoricoExecucao> Historico { get; set; } = [];
@@ -65,6 +67,8 @@ public class ExecucaoServico
 
     public bool IniciarReparo()
     {
+        if (Status == StatusExecucao.Cancelada)
+            throw new RegraNegocioException("Um reparo cancelado nao pode ser reiniciado.");
         if (ReparoIniciadoEm.HasValue) return false;
         var liberacao = RespostasLiberacao.SingleOrDefault(item => item.Tipo == "ExecucaoLiberada"
             && item.CausationId == Autorizacao?.MensagemLiberacaoId);
@@ -104,7 +108,7 @@ public class ExecucaoServico
             || !SagaId.HasValue || inicio is null || inicio.SagaId != SagaId
             || inicio.PagamentoId != Autorizacao.PagamentoId || inicio.OrcamentoId != Autorizacao.OrcamentoId
             || inicio.CausationId != Autorizacao.MensagemLiberacaoId || inicio.IniciadoEm != ReparoIniciadoEm
-            || ReservasPecas.Any(item => item.PecaInsumoId == Guid.Empty || item.Quantidade <= 0 || item.ConsumidaEm.HasValue)
+            || ReservasPecas.Any(item => item.PecaInsumoId == Guid.Empty || item.Quantidade <= 0 || item.ConsumidaEm.HasValue || item.LiberadaEm.HasValue)
             || !ReservasPecas.OrderBy(item => item.PecaInsumoId).Select(item => (item.PecaInsumoId, item.Quantidade))
                 .SequenceEqual(PecasInsumos.OrderBy(item => item.PecaInsumoId).Select(item => (item.PecaInsumoId, item.Quantidade)))
             || ReservasPecas.Select(item => item.PecaInsumoId).Distinct().Count() != ReservasPecas.Count)
@@ -130,6 +134,28 @@ public class ExecucaoServico
             ConcluidoEm = agora
         });
         return true;
+    }
+
+    public void CancelarReparoPago()
+    {
+        if (Status is not (StatusExecucao.AguardandoLiberacao or StatusExecucao.AguardandoExecucao or StatusExecucao.EmExecucao)
+            || ReparoConcluidoEm.HasValue || !DiagnosticoConcluidoEm.HasValue || !EntradaRegistrada || !SagaId.HasValue)
+            throw new RegraNegocioException("Reparo concluido, cancelado ou sem diagnostico nao permite esta compensacao.");
+        if (Status == StatusExecucao.EmExecucao)
+        {
+            if (!ReparoIniciadoEm.HasValue || Autorizacao is null
+                || ReservasPecas.Any(item => item.ConsumidaEm.HasValue || item.LiberadaEm.HasValue || item.Quantidade <= 0)
+                || ReservasPecas.Select(item => item.PecaInsumoId).Distinct().Count() != ReservasPecas.Count
+                || !ReservasPecas.OrderBy(item => item.PecaInsumoId).Select(item => (item.PecaInsumoId, item.Quantidade))
+                    .SequenceEqual(PecasInsumos.OrderBy(item => item.PecaInsumoId).Select(item => (item.PecaInsumoId, item.Quantidade))))
+                throw new RegraNegocioException("Reservas do reparo inconsistentes; cancelamento requer verificacao.");
+        }
+        else if (ReservasPecas.Count != 0 || ReparoIniciadoEm.HasValue)
+            throw new RegraNegocioException("Uma execucao ainda nao iniciada nao deve possuir reservas.");
+        var agora = DateTime.UtcNow;
+        foreach (var reserva in ReservasPecas) reserva.LiberadaEm = agora;
+        ReparoCanceladoEm = agora;
+        RegistrarStatus(StatusExecucao.Cancelada, agora);
     }
 
     public void CancelarPorRecusaOrcamento()

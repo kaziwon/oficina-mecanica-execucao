@@ -18,6 +18,13 @@ public class PecaInsumo
         QuantidadeReservada += quantidade;
     }
 
+    public void LiberarReserva(int quantidade)
+    {
+        if (quantidade <= 0 || QuantidadeReservada < quantidade || QuantidadeReservada > QuantidadeEstoque)
+            throw new Exceptions.RegraNegocioException("Saldo inconsistente para liberar reserva; nenhuma reposicao fisica sera presumida.");
+        QuantidadeReservada -= quantidade;
+    }
+
     public void ConsumirReserva(int quantidade)
     {
         if (!Ativo || quantidade <= 0 || QuantidadeReservada < quantidade || QuantidadeEstoque < quantidade

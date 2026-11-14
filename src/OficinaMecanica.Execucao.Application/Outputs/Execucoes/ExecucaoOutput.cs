@@ -17,6 +17,7 @@ public class ExecucaoOutput
     public DateTime? LiberadaEm { get; set; }
     public DateTime? ReparoIniciadoEm { get; set; }
     public DateTime? ReparoConcluidoEm { get; set; }
+    public DateTime? ReparoCanceladoEm { get; set; }
     public List<ReservaPecaOutput> ReservasPecas { get; set; } = [];
     public long Versao { get; set; }
     public List<ItemServicoDiagnosticoOutput> Servicos { get; set; } = [];

@@ -118,7 +118,7 @@ public class LiberacaoExecucaoTests
         Assert.Equal(StatusExecucao.AguardandoLiberacao, db.Execucoes.Find(item => item.Id == segundo.Payload.ExecucaoId).Single().Status);
     }
 
-    private static MensagemIntegracao Criar(ExecucaoApiFactory factory)
+    internal static MensagemIntegracao Criar(ExecucaoApiFactory factory)
     {
         using var scope = factory.Services.CreateScope(); var entrada = new MensagemIntegracao
         {
