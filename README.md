@@ -332,8 +332,8 @@ reserva, historico ou evento. Uma execucao somente com servicos nao reserva peca
 Ordens avanca para EmExecucao ao receber o evento. O reparo nao inicia ao pagar
 ou liberar a fila. GET /api/execucoes/{id} mostra reparoIniciadoEm e reservasPecas.
 A reserva reduz o disponivel, nao o saldo fisico. A conclusao abaixo consome
-as reservas. Compensacoes continuam pendentes; nao cancele uma execucao
-iniciada usando os endpoints de cancelamento anteriores.
+as reservas. O cancelamento pago usa a compensacao propria descrita abaixo;
+nao use os endpoints de cancelamento anteriores para um reparo iniciado.
 
 O [guia central de inicio do reparo](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/07-inicio-reparo.md)
 explica a transacao, as mensagens e o roteiro HTTP de falta de saldo e reposicao.
@@ -353,10 +353,42 @@ finaliza a OS ao receber o evento, mas nao marca o veiculo como entregue.
 O [guia central de conclusao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/08-conclusao-reparo.md)
 explica estados, mensagens fora de ordem, rollback e o teste HTTP completo.
 
+## Compensacao de reparo pago
+
+O comando interno CancelarReparoPago vem da Saga de Ordens. Antes da conclusao,
+para o reparo e libera todas as reservas em uma transacao Mongo com a resposta
+outbox ReparoPagoCancelado. Liberar so diminui o reservado; nao aumenta estoque
+fisico. GET /api/execucoes/{id} mostra reparoCanceladoEm e liberadaEm nas reservas.
+
+Se o reparo ja concluiu, responde CancelamentoReparoPagoRecusado, sem alterar
+pecas ou historico. Disputas com conclusao usam a mesma versao do documento:
+apenas uma operacao vence. Uma falha em qualquer liberacao desfaz todas.
+Execucao nao faz estorno e nao acessa o banco financeiro; Ordens so solicita
+estorno a Cobranca depois da confirmacao de parada. Mensagens atrasadas de
+liberacao nao reativam a execucao cancelada.
+
+O [guia central de compensacao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/10-compensacao-paga.md)
+mostra a sequencia, os limites e os testes HTTP de sucesso e falha financeira.
+
 ## Proximos incrementos
 
-- Liberacao de reservas em compensacoes explicitas, sem presumir estorno.
-- Qualidade com Sonar, verificacao de 80% e BDD distribuido.
+- Integrar qualidade no CI e configurar Sonar (contas/servicos externos adiados).
 - Kubernetes, Terraform, CD e observabilidade distribuida no New Relic.
 
 Esta base e independente dos repositorios da Fase 3.
+
+## Cobertura e BDD locais
+
+Na raiz deste servico, com o MongoDB replica set de teste configurado:
+
+```bash
+dotnet test --configuration Release --settings cobertura.runsettings --collect:"XPlat Code Coverage" --results-directory TestResults/cobertura-atual
+python3 tools/verificar_cobertura.py --servico Execucao --diretorio TestResults/cobertura-atual
+```
+
+Use uma pasta de resultados nova por execucao. O verificador une linhas de
+unidade/integracao sem duplicar o denominador, exige as cinco camadas e falha
+abaixo de 80%. O [BDD central em Ordens](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/14-testes-qualidade-local.md)
+exercita entrega, recusa e compensacao pelos tres servicos reais locais.
+O [replay local de DLQ](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/13-recuperacao-saga.md)
+preserva IDs para que as verificacoes de idempotencia continuem valendo.

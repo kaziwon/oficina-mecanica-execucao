@@ -6,4 +6,5 @@ public class ReservaPeca
     public int Quantidade { get; set; }
     public DateTime ReservadaEm { get; set; }
     public DateTime? ConsumidaEm { get; set; }
+    public DateTime? LiberadaEm { get; set; }
 }

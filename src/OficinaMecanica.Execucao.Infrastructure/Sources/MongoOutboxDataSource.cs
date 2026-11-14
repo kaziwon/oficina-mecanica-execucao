@@ -19,7 +19,8 @@ public class MongoOutboxDataSource : IOutboxDataSource
             | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasRecusaOrcamento, item => item.PublicadaEm == null)
             | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasLiberacao, item => item.PublicadaEm == null)
             | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosReparo, item => item.PublicadoEm == null)
-            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosConclusaoReparo, item => item.PublicadoEm == null);
+            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosConclusaoReparo, item => item.PublicadoEm == null)
+            | Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasCancelamentoPago, item => item.PublicadaEm == null);
         return _execucoes.Find(filter).SortBy(item => item.CriadaEm).Limit(limite).ToList()
             .SelectMany(item => item.RespostasEntrada.Where(resposta => resposta.PublicadaEm == null)
                 .Select(RespostaEntradaMapper.Mapear).Concat(item.EventosDiagnostico
@@ -28,12 +29,16 @@ public class MongoOutboxDataSource : IOutboxDataSource
                     .Select(RespostaRecusaOrcamentoMapper.Mapear))
                 .Concat(item.RespostasLiberacao.Where(resposta => resposta.PublicadaEm == null).Select(RespostaLiberacaoExecucaoMapper.Mapear))
                 .Concat(item.EventosReparo.Where(evento => evento.PublicadoEm == null).Select(EventoReparoMapper.Mapear))
-                .Concat(item.EventosConclusaoReparo.Where(evento => evento.PublicadoEm == null).Select(EventoConclusaoReparoMapper.Mapear)))
+                .Concat(item.EventosConclusaoReparo.Where(evento => evento.PublicadoEm == null).Select(EventoConclusaoReparoMapper.Mapear))
+                .Concat(item.RespostasCancelamentoPago.Where(resposta => resposta.PublicadaEm == null).Select(RespostaCancelamentoPagoMapper.Mapear)))
             .OrderBy(item => item.OccurredAt).ThenBy(item => item.MessageId).Take(limite).ToList();
     }
 
     public void ConfirmarPublicacao(Guid messageId)
     {
+        var cancelamento = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.RespostasCancelamentoPago,
+            item => item.MessageId == messageId && item.PublicadaEm == null);
+        _execucoes.UpdateOne(cancelamento, Builders<ExecucaoServico>.Update.Set("RespostasCancelamentoPago.$.PublicadaEm", DateTime.UtcNow).Inc(item => item.Versao, 1));
         var conclusao = Builders<ExecucaoServico>.Filter.ElemMatch(item => item.EventosConclusaoReparo,
             item => item.MessageId == messageId && item.PublicadoEm == null);
         _execucoes.UpdateOne(conclusao, Builders<ExecucaoServico>.Update.Set("EventosConclusaoReparo.$.PublicadoEm", DateTime.UtcNow).Inc(item => item.Versao, 1));
