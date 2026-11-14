@@ -405,6 +405,8 @@ qualidade-local.yml foi preparado para analisar a main no SonarQube Community
 do notebook, somente depois de CI bem-sucedido ou disparo manual na main.
 Usa runner self-hosted macOS com label sonar-local e Secret SONAR_TOKEN deste
 projeto. Runner e token cadastrados; falta validar a primeira analise.
+O runner deve ter Python 3.10+ e Docker Compose disponiveis no PATH. O workflow
+valida essas ferramentas e usa o Python local, sem instalar em /Users/runner.
 Nao usa Sonar Cloud e nao executa forks/PRs no runner pessoal. O servidor
 compartilhado e iniciado pelo compose.sonar.yml de oficina-mecanica-infra-local. Veja o
 [guia completo](https://github.com/kaziwon/oficina-mecanica-infra-local/blob/main/docs/15-sonarqube-local.md).
