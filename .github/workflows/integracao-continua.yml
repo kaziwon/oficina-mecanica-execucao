@@ -49,13 +49,20 @@ jobs:
       - run: dotnet restore OficinaMecanica.Execucao.slnx
       - run: >-
           dotnet test OficinaMecanica.Execucao.slnx --configuration Release --no-restore
-          --collect:"XPlat Code Coverage" --results-directory TestResults
+          --settings cobertura.runsettings --collect:"XPlat Code Coverage"
+          --logger trx --results-directory TestResults
+      - name: Exigir cobertura minima de 80%
+        run: python3 tools/verificar_cobertura.py --servico Execucao --diretorio TestResults --json TestResults/cobertura-resumo.json
       - name: Publicar relatorios de cobertura
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cobertura-execucao
-          path: TestResults/**/coverage.cobertura.xml
+          path: |
+            TestResults/**/coverage.cobertura.xml
+            TestResults/**/coverage.opencover.xml
+            TestResults/cobertura-resumo.json
+            TestResults/**/*.trx
           if-no-files-found: warn
       - name: Encerrar MongoDB de teste
         if: always()

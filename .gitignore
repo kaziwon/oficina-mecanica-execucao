@@ -1,6 +1,8 @@
 **/bin/
 **/obj/
 **/TestResults/
+.sonarqube/
+.scannerwork/
 coverage/
 .vs/
 .idea/
