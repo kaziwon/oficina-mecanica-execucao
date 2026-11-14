@@ -16,3 +16,5 @@ coverage/
 *.tfstate*
 *.tfplan
 *.tfvars
+*.tfvars.json
+__pycache__/

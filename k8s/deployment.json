@@ -1,0 +1,6 @@
+{
+  "service": "execucao",
+  "solution": "OficinaMecanica.Execucao.slnx",
+  "host_port": 18102,
+  "node_port": 30102
+}

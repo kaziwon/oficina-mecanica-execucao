@@ -372,15 +372,27 @@ mostra a sequencia, os limites e os testes HTTP de sucesso e falha financeira.
 
 ## Proximos incrementos
 
-- Validar runner/token e primeira analise do Sonar local; automatizar BDD no CI.
-- Recursos Kubernetes, CD no kind local e observabilidade distribuida no New Relic.
+- Publicar e validar o novo CD no GitHub; automatizar BDD no CI.
+- Observabilidade distribuida no New Relic, metricas/escalabilidade e evidencias.
 
 Esta base e independente dos repositorios da Fase 3.
 
-O ambiente de entrega da Fase 4 sera LOCAL, em um cluster kind compartilhado,
+O ambiente de entrega da Fase 4 e LOCAL, em um cluster kind compartilhado,
 nao AWS. Cada servico preserva banco, recursos e CD independentes. Sonar e local
 e New Relic continua externo. A base Terraform fica em oficina-mecanica-infra-local;
-os recursos de Execucao ficarao neste repositorio. Veja o [guia do cluster local](https://github.com/kaziwon/oficina-mecanica-infra-local/blob/main/docs/16-kubernetes-local.md).
+os recursos de Execucao ficam neste repositorio. Veja o [guia do cluster local](https://github.com/kaziwon/oficina-mecanica-infra-local/blob/main/docs/16-kubernetes-local.md).
+
+Depois de preparar a base em infra-local, publique somente Execucao:
+
+```bash
+python3 scripts/deploy_local.py
+```
+
+Swagger: http://127.0.0.1:18102/swagger/index.html. k8s/ contem os manifestos;
+infra/kubernetes/ administra namespace oficina-execucao, Mongo autenticado com
+PVC, bootstrap rs0 e API. Nenhum outro repositorio ou banco e aplicado pelo CD.
+O login admin usa a senha privada de ~/.local/share/oficina-fase4/secrets/common.json,
+nao a do Compose. Veja o [guia de entrega](https://github.com/kaziwon/oficina-mecanica-infra-local/blob/main/docs/17-deploy-kubernetes-local.md).
 
 ## Cobertura e BDD locais
 
@@ -404,9 +416,14 @@ O CI passa a exigir pelo menos 80% de cobertura. O novo workflow
 qualidade-local.yml foi preparado para analisar a main no SonarQube Community
 do notebook, somente depois de CI bem-sucedido ou disparo manual na main.
 Usa runner self-hosted macOS com label sonar-local e Secret SONAR_TOKEN deste
-projeto. Runner e token cadastrados; falta validar a primeira analise.
+projeto. Runner e token cadastrados; a primeira analise real passou.
 O runner deve ter Python 3.10+ e Docker Compose disponiveis no PATH. O workflow
 valida essas ferramentas e usa o Python local, sem instalar em /Users/runner.
 Nao usa Sonar Cloud e nao executa forks/PRs no runner pessoal. O servidor
 compartilhado e iniciado pelo compose.sonar.yml de oficina-mecanica-infra-local. Veja o
 [guia completo](https://github.com/kaziwon/oficina-mecanica-infra-local/blob/main/docs/15-sonarqube-local.md).
+
+entrega-continua-local.yml publica somente apos CI e Sonar aprovados para o SHA
+exato da main, tambem no disparo manual. Faz build, carrega imagem no kind e
+espera bootstrap/rollout. Um mutex local serializa qualidade/deploy para poupar
+RAM, sem vincular releases. O novo workflow precisa de PR e teste real no GitHub.
