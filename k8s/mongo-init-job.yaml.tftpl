@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "${job_name}"
+  namespace: "${namespace}"
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 240
+  template:
+    metadata:
+      labels: {app: mongo-bootstrap}
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      containers:
+        - name: replica-init
+          image: mongo:8.0@sha256:b9924c330a8bbc5800fe9c69f04a84e221eca7b28fd049a0354147d9908fa142
+          command: [sh, -ec]
+          args:
+            - 'exec mongosh --quiet --host mongo --username "$MONGO_INITDB_ROOT_USERNAME" --password "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin /scripts/mongo-replica-init.js'
+          envFrom: [{secretRef: {name: database-secrets}}]
+          env:
+            - name: MONGO_REPLICA_HOST
+              value: "mongo-0.mongo.${namespace}.svc.cluster.local:27017"
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 384Mi}
+          volumeMounts:
+            - {name: scripts, mountPath: /scripts, readOnly: true}
+      volumes:
+        - name: scripts
+          configMap: {name: mongo-bootstrap}
