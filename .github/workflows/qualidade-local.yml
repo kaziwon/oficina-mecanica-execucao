@@ -27,8 +27,6 @@ jobs:
        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: [self-hosted, macOS, sonar-local]
     timeout-minutes: 30
-    env:
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,11 +34,16 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-dotnet@v4
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/dotnet
         with:
           dotnet-version: 10.0.x
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      - name: Verificar ferramentas do runner local
+        run: |
+          python3 --version
+          python3 -c 'import sys; assert sys.version_info >= (3, 10), "Instale Python 3.10 ou superior no runner local."'
+          docker compose version
+          docker info --format '{{.ServerVersion}}'
       - name: Analisar codigo, testes, cobertura e quality gate
         env:
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'http://127.0.0.1:9000' }}
