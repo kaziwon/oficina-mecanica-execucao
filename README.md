@@ -2,7 +2,7 @@
 
 Microsservico responsavel pelo catalogo de servicos e pecas, estoque, fila de
 trabalho e diagnostico. Usa MongoDB proprio e nao acessa o banco de Ordens.
-
+ 
 ## Escopo implementado
 
 - Login administrativo com JWT.
