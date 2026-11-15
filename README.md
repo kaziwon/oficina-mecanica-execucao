@@ -370,10 +370,25 @@ liberacao nao reativam a execucao cancelada.
 O [guia central de compensacao](https://github.com/kaziwon/oficina-mecanica-ordens/blob/main/docs/integracao/10-compensacao-paga.md)
 mostra a sequencia, os limites e os testes HTTP de sucesso e falha financeira.
 
+## Observabilidade no New Relic
+
+A imagem contem o agente .NET fixado e sua instrumentacao XML, sem pacote New
+Relic nas camadas internas. No kind, o deploy le a configuracao privada comum
+de infra-local e habilita APM, logs JSON encaminhados e tracing de HTTP/SQS.
+Sem configuracao, o profiler fica desligado. A entidade deste servico e
+oficina-fase4-execucao; o cluster aparece como oficina-fase4.
+
+SagaId/CorrelationId permitem acompanhar uma OS entre etapas e traces diferentes.
+A outbox nao guarda o contexto HTTP original: nao se trata de um unico trace
+de longa duracao do cadastro ate a entrega. As transacoes de publicacao/consumo
+e seus headers sao instrumentados sem mudar o envelope JSON das mensagens.
+O [guia de observabilidade](https://github.com/kaziwon/oficina-mecanica-infra-local/blob/main/docs/18-observabilidade-new-relic.md)
+explica habilitacao, seguranca, consultas NRQL e verificacao no site.
+
 ## Proximos incrementos
 
-- Publicar e validar o novo CD no GitHub; automatizar BDD no CI.
-- Observabilidade distribuida no New Relic, metricas/escalabilidade e evidencias.
+- Publicar e validar esta alteracao de observabilidade no CI; automatizar BDD no CI.
+- Metrics-server/HPA e evidencias/documentacao finais.
 
 Esta base e independente dos repositorios da Fase 3.
 
@@ -426,4 +441,5 @@ compartilhado e iniciado pelo compose.sonar.yml de oficina-mecanica-infra-local.
 entrega-continua-local.yml publica somente apos CI e Sonar aprovados para o SHA
 exato da main, tambem no disparo manual. Faz build, carrega imagem no kind e
 espera bootstrap/rollout. Um mutex local serializa qualidade/deploy para poupar
-RAM, sem vincular releases. O novo workflow precisa de PR e teste real no GitHub.
+RAM, sem vincular releases. A primeira execucao real passou no GitHub; cada
+alteracao nova precisa novamente de PR e checks do proprio SHA.
